@@ -1,263 +1,112 @@
-import React, { Component } from 'react';
-import './App.css';
+import React, { Component } from 'react'
+import soundFile from './metal-metronome.mp3'
 
-//For Setting the time for Break and Session
-function SetLength (props) {
-  return(
-    <div className='lenContainer'>
-      <h2>{props.title}</h2>
-      {props.length}
-    </div>
-  );
-}
+// Component Imports 
+import Time from './components/Time'
+import SessionControl from './components/SessionControl'
+import BreakControl from './components/BreakControl'
 
-function Timer (props) {
-  return(
-    <div className='timerDisplay' style={props.style}>
-      <h2 id='display-title'>{props.title}</h2>
-      <span id='time-left'>{props.timeLeft}</span>
-    </div>
-  );
-}
-
-function Increase (props) {
-  return(
-    <button className='increase' onClick={props.onClick} disabled={props.disabled}>+1</button>
-  );
-}
-
-function Decrease (props) {
-  return(
-    <button className='decrease' onClick={props.onClick} disabled={props.disabled}>-1</button>
-  );
-}
-
-function PlayPause (props) {
-  return(
-    <button class='main-buttons' onClick={props.onClick}>Start/Stop</button>
-  );
-}
-
-function Reset (props) {
-  return(
-    <button class='main-buttons' onClick={props.onClick}>Reset</button>
-  );
-}
-
+// Note: for timer, I am not using the JS Date object. Keeping track of timer through state and setTimeout
 
 class App extends Component {
-
-  constructor(props) {
-    super(props);
-
-    this.state = {
-      inSession: true,
-      breakLen: 5,
-      sessionLen: 25,
-      timeLeft : 1000 * 60 * 25,    //timeLeft is measured in milliseconds. for built JS functions
-      playing: false,
-    };
-
-    this.increaseBreak = this.increaseBreak.bind(this);
-    this.decreaseBreak = this.decreaseBreak.bind(this);
-
-    this.increaseSes = this.increaseSes.bind(this);
-    this.decreaseSes = this.decreaseSes.bind(this);
-
-    this.runTimer = this.runTimer.bind(this);
-    this.tick = this.tick.bind(this);
-
-    this.resetTimer = this.resetTimer.bind(this);
+  state = {
+    timeLeft: 25 * 60,   // default time is 25 minutes
+    inSession: true,
+    play: false,
+    breakLen: 5,
+    sessionLen: 25, 
   }
 
+  startTimer = () => { // method to decrement when active
+    // const audio = new Audio(soundFile)
 
-  //increasing break length
-  increaseBreak() {
+    this.timer = setInterval(() => {
+      // ternary statement for when timer hits zero. Checking if timeLeft is not truthy
+      !this.state.timeLeft ? 
 
-    let prevLen  = this.state.breakLen;
+        this.setState(prevState => { // when timer hits zero
+          // audio.play()
+          
+          // change type of timer. restart timer
+          let newLen  // new length of break or session
+          prevState.inSession ? newLen = prevState.breakLen : newLen = prevState.sessionLen
 
-    this.setState({
-      breakLen: prevLen + 1
-    });
+          return {
+            inSession: !prevState.inSession,
+            timeLeft: newLen * 60
+          }
+        }) :  
 
-  }
+            this.setState(prevState => {
+              prevState.timeLeft === 1 ? this.audio.play() : null  // play audio right before change to 00:00
+              return {timeLeft: prevState.timeLeft - 1} // not mutating state here. Pulling value off first
+            })
 
-  //decreasing break length
-  decreaseBreak() {
-
-    let prevLen  = this.state.breakLen;
-
-    if(prevLen > 1) {
-
-      this.setState({
-        breakLen: prevLen - 1
-      });
-
-    }
-  }
-
-  //increasing session time
-  increaseSes() {
-
-    let prevLen = this.state.sessionLen;
-
-    this.setState({
-      sessionLen: prevLen + 1,
-      timeLeft: 1000 * 60 * (prevLen + 1),
-    });
+    }, 1000)
 
   }
 
-  //decrease session time
-  decreaseSes() {
-
-    let prevLen = this.state.sessionLen;
-
-    if(prevLen > 1) {
-      this.setState({
-        sessionLen: prevLen - 1,
-        timeLeft: 1000 * 60 * (prevLen - 1),
-      });
-    }
-
+  pauseTimer = () => {
+    clearInterval(this.timer)
   }
 
-  //callback for setInterval
-  tick() {
+  handleClick = (event) => { // handle button clicks
+    const {name, value} = event.target
 
-    this.setState({
-      timeLeft: this.state.timeLeft - 1000,
-    })
-
-    // set the switch to -1, so that timer can reach 0 before switching
-    if (this.state.timeLeft === -1000) {
-
-      var horn = new Audio("https:\/\/upload.wikimedia.org\/wikipedia\/commons\/5\/51\/Music_loop_168bpm_%28Still_frivolous%29.ogg");
-
-      horn.play();
-
-      //switch from session to break and vice versa
-      this.switchTimers();
-
-    }
-
-  }
-
-  switchTimers() {
-
-    if (this.state.inSession) {
-
-      this.setState({
-        timeLeft: 1000 * 60 * this.state.breakLen,
-        inSession: false,
-      });
-
-    } else {
-
-      this.setState({
-        timeLeft: 1000 * 60 * this.state.sessionLen,
+    if (name === 'reset' ) {
+      this.pauseTimer() // stop timer on reset
+      this.setState({ // if reset, set playing to false and default time. Behavior: stop playing, timer back to 25:00
+        timeLeft: 25 * 60,
+        play: false,
         inSession: true,
-      });
+      }) 
+    
+    } else if (name === 'play') {
 
-    }
+      this.setState( prevState => {
+        // run timer if play is True. else stop
+        prevState.play ? this.pauseTimer() : this.startTimer()
 
+        return {play: !prevState.play}
+      })        
+      
+    } else {  // handle session/break increments and decrements buttons
+      
+      this.setState( prevState => {
+          let newLen = prevState[name] + Number(value)  //  save in var if timeLeft needs to be updated as well
+
+          // only update timeLeft if it is inSession for sessionLen and vice versa
+          if ((name === 'sessionLen' && prevState.inSession) || (name ==='breakLen' && !prevState.inSession)) {
+            return {[name] : newLen, timeLeft: newLen * 60}
+          }
+
+          return {[name]: newLen}    
+      })
+
+    } 
+        
   }
-
-  //starts and stops time
-  runTimer() {
-
-    let currentPlaying = this.state.playing;
-
-    this.setState({playing: !currentPlaying}, () => {
-
-      if (this.state.playing) {
-
-        clearInterval(this.timerInterval);
-        this.timerInterval =  setInterval(this.tick.bind(this), 1000);
-
-      } else {
-
-        clearInterval(this.timerInterval);
-
-      }
-    });
-
-  }
-
-  //resets back to default state
-  resetTimer() {
-
-    //if previously playing, will remove interval so timer can stop.
-    clearInterval(this.timerInterval);
-    //make a copy of the object
-    let defaultState = {
-      inSession: true,
-      breakLen: 5,
-      sessionLen: 25,
-      timeLeft : 1000 * 60 * 25,
-      playing: false,
-    };
-
-    this.setState(defaultState);
-
-  }
-
+  
   render() {
-
-    let mm = Math.floor(this.state.timeLeft / 60 / 1000);     //minutes display
-    let ss = (this.state.timeLeft - (mm * 60 * 1000) ) / 1000;//seconds display
-
-    mm = mm < 10 ? '0' + mm : mm;
-    ss = ss < 10 ? '0' + ss : ss;
-
-    let ifPlaying = this.state.playing ? true : false;
-
-    let sessionType = this.state.inSession ? 'Session' : 'Break';
-
-    //Maybe render these smaller components separately for performance
-    return (
-      <div id='main'>
-
-        <h1 id='title'>Pomodoro Clock</h1>
-
-        <div className='row'>
-
-          <div className='row'>
-            <div className='button-group'>
-              <Increase onClick={this.increaseBreak} disabled={ifPlaying} />
-              <Decrease onClick={this.decreaseBreak} disabled={ifPlaying} />
-            </div>
-
-            <SetLength title='Break Length' length={this.state.breakLen} />
-          </div>
-
-          <div className='row'>
-            <SetLength title='Session Length' length={this.state.sessionLen} />
-
-            <div className='button-group'>
-              <Increase onClick={this.increaseSes} disabled={ifPlaying} />
-              <Decrease onClick={this.decreaseSes} disabled={ifPlaying} />
-            </div>
-          </div>
-
-        </div>
-
-        <Timer title={sessionType} timeLeft={mm + ':' + ss} style={mm == '00' ? {color: 'red'} : {color: 'white'}}/>
-
-        <div class='row'>
-          <PlayPause onClick={this.runTimer} />
-          <Reset onClick={this.resetTimer} />
-        </div>
-
-        <div id='footer'>
-          Designed and Coded by <br></br>
-          <span id='myName'>James Pham</span>
-        </div>
-
+    return(
+      <div id='app'>
+        <Time
+          data={this.state}
+          handleClick={this.handleClick}
+        />
+        <SessionControl
+          data={this.state}
+          handleClick={this.handleClick}
+        />
+        <BreakControl
+          data={this.state}
+          handleClick={this.handleClick}
+        />
+        
+        <audio src={soundFile} ref={(audio) => { this.audio = audio }}></audio>
       </div>
-    );
+    )
   }
-
 }
 
-export default App;
+export default App
