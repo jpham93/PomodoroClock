@@ -1,5 +1,6 @@
 import React, { Component } from 'react'
-import soundFile from './metal-metronome.mp3'
+
+// import soundLink from './metal-metronome.mp3'
 
 // Component Imports 
 import Time from './components/Time'
@@ -7,6 +8,8 @@ import SessionControl from './components/SessionControl'
 import BreakControl from './components/BreakControl'
 
 // Note: for timer, I am not using the JS Date object. Keeping track of timer through state and setTimeout
+
+const soundLink = 'http://freesound.org/data/previews/413/413749_5121236-lq.mp3'
 
 class App extends Component {
   state = {
@@ -25,7 +28,6 @@ class App extends Component {
       !this.state.timeLeft ? 
 
         this.setState(prevState => { // when timer hits zero
-          // audio.play()
           
           // change type of timer. restart timer
           let newLen  // new length of break or session
@@ -51,14 +53,20 @@ class App extends Component {
   }
 
   handleClick = (event) => { // handle button clicks
-    const {name, value} = event.target
+    const {name, value} = event.currentTarget // instead of target because of icon overlaying button node. currentTarget moves to the node listening to an event.
 
     if (name === 'reset' ) {
       this.pauseTimer() // stop timer on reset
+
+      this.audio.pause() // manually stop and "rewind" audio element
+      this.audio.currentTime = 0
+
       this.setState({ // if reset, set playing to false and default time. Behavior: stop playing, timer back to 25:00
         timeLeft: 25 * 60,
         play: false,
         inSession: true,
+        breakLen: 5,
+        sessionLen: 25, 
       }) 
     
     } else if (name === 'play') {
@@ -89,22 +97,29 @@ class App extends Component {
   
   render() {
     return(
-      <div id='app'>
+  
+      <div id='app' className='container z-depth-2 white'>
+        <h1 className='center' id='title' style={{position: 'relative', top: '10px'}}>Pomodoro Clock</h1>
         <Time
           data={this.state}
           handleClick={this.handleClick}
         />
-        <SessionControl
-          data={this.state}
-          handleClick={this.handleClick}
-        />
-        <BreakControl
-          data={this.state}
-          handleClick={this.handleClick}
-        />
+
+        <div className='row center'>
+          <SessionControl
+            data={this.state}
+            handleClick={this.handleClick}
+          />
+          <BreakControl
+            data={this.state}
+            handleClick={this.handleClick}
+          />
+        </div>
+        <p className='center'>Designed and Coded By James Pham</p>
         
-        <audio src={soundFile} ref={(audio) => { this.audio = audio }}></audio>
+        <audio id='beep' src={soundLink} ref={(audio) => { this.audio = audio }}></audio>
       </div>
+      
     )
   }
 }
